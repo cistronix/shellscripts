@@ -12,6 +12,23 @@
 ## Tested on Raspberry Pi 3B with Raspberry Pi OS (TM).			#
 #########################################################################
 
+#    Copyright (C) 2023  Cistronix
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published
+#    by the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+
 # Please set to yes if you have adapted the script to your needs.
 AGREE=no
 
@@ -146,6 +163,16 @@ removeuser()
 	newpeerstemp=$(mktemp)
 	cat /etc/wireguard/.peers | grep -v "$PUBKEY" > $newpeerstemp
 	mv $newpeerstemp /etc/wireguard/.peers
+	temp=$(mktemp)
+	wg show wg0 peers > $temp
+	while read name _ _ _ _ public _ _ _ _; do
+		test "$public" = "" && continue
+		sed -i "s,$public,$name," $temp
+	done < /etc/wireguard/.peers
+	echo Removed $1
+	echo "Users left in configuration:"
+	echo $(cat $temp)
+	rm $temp
 }
 
 status()
@@ -157,8 +184,8 @@ status()
 	while read name _ _ _ _ public _ _ _ _; do
 		test "$public" = "" && continue
 		sed -i "s,$public,$name," $temp
-		cat $temp
 	done < /etc/wireguard/.peers
+	cat $temp
 	rm $temp
 	exit
 }
@@ -168,7 +195,7 @@ serverconfig()
 
 	test -e /etc/wireguard/wg0.conf && echo "WireGuard config in /etc/wireguard/wg0.conf exists. Please delete it first"
 	test -e /etc/wireguard/wg0.conf && exit
-	wg-quick down wg0
+	wg-quick down wg0 2> /dev/null
 	PRIVKEY=$(wg genkey)
 	PUBKEY=$(echo $PRIVKEY | wg pubkey)
 	genipserver()
@@ -200,19 +227,20 @@ serverconfig()
 	echo "ListenPort = $LISTENPORT" >> /etc/wireguard/wg0.conf
 	echo "PrivateKey = $PRIVKEY" >> /etc/wireguard/wg0.conf
 	wg-quick up wg0
-	rm /etc/wireguard/.peers
+	rm /etc/wireguard/.peers 2> /dev/null
 	echo "serverconfig 0 1 0 0 $PUBKEY" > /etc/wireguard/.peers
 
 	ufwconfig()
 	{
 		# Assuming that the server runs a DNS Server on port 53
-		ufw allow from any proto udp to any port 52488
+		ufw allow from any proto udp to any port $LISTENPORT
 		ufw allow from 172.$subnet.0.0/16 proto tcp to 172.$subnet.0.1 port 53
 		ufw allow from $ULA::/64 proto tcp to $ULA::1 port 53
 		ufw allow from 172.$subnet.0.0/16 proto udp to 172.$subnet.0.1 port 53
 		ufw allow from $ULA::/64 proto udp to $ULA::1 port 53
 	}
 	test -x /usr/sbin/ufw && ufwconfig
+	wg
 }
 
 test "$1" = "serverconfig" && serverconfig && exit
@@ -227,6 +255,8 @@ test $serverrunning = 0 || echo "Server not running"
 test $serverrunning = 0 || exit
 echo Working on Wireguard server with public key $serverkey
 echo ""
-test "$1" = "add" && adduser $2 && showuser $2
-test "$1" = "show" && showuser $2
-test "$1" = "remove" && removeuser $2
+test "$1" = "add" && adduser $2 && showuser $2 && exit
+test "$1" = "show" && showuser $2 && exit
+test "$1" = "remove" && removeuser $2 && exit
+test "$1" = "delete" && removeuser $2 && exit
+echo "Usage: peerguard.sh (add|remove|show|status|serverconfig) username"
