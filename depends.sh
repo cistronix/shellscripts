@@ -26,6 +26,12 @@
 # Set to a list of all the packages that you want to build
 synthlist=/root/synthlist
 
+
+
+
+test "$(uname)" = "FreeBSD" || echo "For FreeBSD only"
+test "$(uname)" = "FreeBSD" || exit
+
 function_print_usage()
 {
 	printf "\
