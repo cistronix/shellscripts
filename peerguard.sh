@@ -227,6 +227,7 @@ serverconfig()
 	echo "ListenPort = $LISTENPORT" >> /etc/wireguard/wg0.conf
 	echo "PrivateKey = $PRIVKEY" >> /etc/wireguard/wg0.conf
 	wg-quick up wg0
+ 	systemctl enable wg-quick@wg0.service
 	rm /etc/wireguard/.peers 2> /dev/null
 	echo "serverconfig 0 1 0 0 $PUBKEY" > /etc/wireguard/.peers
 
