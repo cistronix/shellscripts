@@ -284,3 +284,13 @@ TPM2_PKCS11_STORE=%h/.tpm2-pkcs11
 # Conclusion
 
 Using a TPM-backed SSH key with `tpm2-pkcs11` provides strong protection against private key extraction while remaining compatible with standard OpenSSH workflows.
+
+---
+
+# Server config
+
+sshd must allow ecdsa-sha2-nistp256 keys.
+
+```text
+PubkeyAcceptedAlgorithms ecdsa-sha2-nistp256,sk-ssh-ed25519@openssh.com
+```
